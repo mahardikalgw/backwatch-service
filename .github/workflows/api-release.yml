@@ -158,7 +158,6 @@ jobs:
           key: ${{ secrets.DEPLOY_SSH_KEY }}
           script: |
             set -e
-            echo "${{ secrets.GHCR_TOKEN }}" | podman login ghcr.io -u "${{ secrets.GHCR_USER }}" --password-stdin
             cd /opt/backwatch-api
             export BACKWATCH_IMAGE="ghcr.io/mahardikalgw/backwatch-service:${{ inputs.version }}"
             podman-compose pull backup-api

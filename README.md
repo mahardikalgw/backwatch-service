@@ -284,11 +284,14 @@ Required repository secrets (Settings → Secrets and variables → Actions):
 
 | Secret | Used by | Description |
 |---|---|---|
-| `DEPLOY_HOST` | release.yml | IP/host of the central server |
-| `DEPLOY_USER` | release.yml | SSH user on the central server |
-| `DEPLOY_SSH_KEY` | release.yml | private SSH key of `DEPLOY_USER` |
-| `GHCR_USER` | release.yml | GitHub user for the server's GHCR login |
-| `GHCR_TOKEN` | release.yml | GitHub PAT with `read:packages` for the server to pull images |
+| `DEPLOY_HOST` | api-release.yml | IP/host of the central server |
+| `DEPLOY_USER` | api-release.yml | SSH user on the central server |
+| `DEPLOY_SSH_KEY` | api-release.yml | private SSH key of `DEPLOY_USER` |
+
+Image pull from GHCR requires the central server to be logged in once manually:
+```bash
+echo <PAT> | podman login ghcr.io -u <gh-username> --password-stdin
+```
 
 Releasing:
 
