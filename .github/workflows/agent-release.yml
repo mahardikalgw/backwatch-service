@@ -1,6 +1,8 @@
 name: Agent Release
 
 on:
+  push:
+    tags: ["v*"]
   workflow_dispatch:
     inputs:
       version:
@@ -46,10 +48,16 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Set agent package version from input
+      - name: Determine version
+        id: version
+        run: |
+          VERSION="${{ github.event_name == 'workflow_dispatch' && inputs.version || github.ref_name }}"
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+
+      - name: Set agent package version
         run: sed -i "s/^version = .*/version = \"${VERSION#v}\"/" agent/pyproject.toml
         env:
-          VERSION: ${{ inputs.version }}
+          VERSION: ${{ steps.version.outputs.version }}
 
       - name: Build agent wheel
         run: |
@@ -59,11 +67,11 @@ jobs:
       - name: Package agent deploy templates
         run: tar -czf backwatch-agent-deploy.tar.gz -C deploy/agent .
 
-      - name: Publish GitHub Release
+      - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ inputs.version }}
-          name: ${{ inputs.version }}
+          tag_name: ${{ steps.version.outputs.version }}
+          name: ${{ steps.version.outputs.version }}
           generate_release_notes: true
           files: |
             dist/*.whl
