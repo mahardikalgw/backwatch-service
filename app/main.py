@@ -2,18 +2,18 @@
 
 from __future__ import annotations
 
+from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
-from typing import AsyncIterator
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from prometheus_client import make_asgi_app
 
-from app.api.v1.router import api_router
+from app import models  # noqa: F401  (register models on Base)
 from app.api.v1.endpoints.health import router as health_router
+from app.api.v1.router import api_router
 from app.core.config import get_settings
 from app.core.database import Base, engine
-from app import models  # noqa: F401  (register models on Base)
 
 
 def init_observability(app: FastAPI) -> None:

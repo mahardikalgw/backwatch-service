@@ -193,9 +193,7 @@ class Reporter:
         }
         url = f"{self._config.api_url.rstrip('/')}/api/v1/backups"
         try:
-            response = httpx.post(
-                url, json=payload, headers={"X-API-Key": self._config.api_key}, timeout=30
-            )
+            response = httpx.post(url, json=payload, headers={"X-API-Key": self._config.api_key}, timeout=30)
         except httpx.HTTPError as exc:
             self._log_failure(f"request failed: {exc}")
             return False

@@ -264,14 +264,54 @@ backup_overdue{application}
 .venv/bin/mypy app agent scripts     # strict type checking
 ```
 
+## CI/CD
+
+GitHub Actions workflows in `.github/workflows/`:
+
+- **`ci.yml`** — on push/PR to `main`: ruff lint + format, strict mypy, pytest.
+- **`release.yml`** — on a `v*` tag:
+  1. builds the **agent wheel** (`backwatch_agent-<ver>-py3-none-any.whl`) and a
+     `backwatch-agent-deploy.tar.gz` (systemd templates), attached to a GitHub
+     Release;
+  2. builds the **API Docker image** and pushes it to GHCR
+     (`ghcr.io/mahardikalgw/backwatch-service:<tag>` and `:latest`);
+  3. **deploys the API** over SSH to the central server (`docker compose pull`
+     + `up -d --no-build`).
+
+Required repository secrets (Settings → Secrets and variables → Actions):
+
+| Secret | Used by | Description |
+|---|---|---|
+| `DEPLOY_HOST` | release.yml | IP/host of the central server |
+| `DEPLOY_USER` | release.yml | SSH user on the central server |
+| `DEPLOY_SSH_KEY` | release.yml | private SSH key of `DEPLOY_USER` |
+| `GHCR_USER` | release.yml | GitHub user for the server's GHCR login |
+| `GHCR_TOKEN` | release.yml | GitHub PAT with `read:packages` for the server to pull images |
+
+Releasing:
+
+```bash
+git tag v0.1.0
+git push origin v0.1.0
+```
+
+The **agent is not auto-deployed** by the pipeline — each application server
+pulls its artifact from the GitHub Release when you run the installer:
+
+```bash
+sudo BACKWATCH_VERSION=v0.1.0 ./deploy/agent/install.sh talenta --schedule "*-*-* 00:00:00"
+```
+
 ## Deployment
 
 Two deployables on separate servers — the API once, the agent once per
-application server. See **[`deploy/README.md`](deploy/README.md)** for the full
-runbook (prerequisites, installers, canary rollout order, verification,
-rollback, incident reference).
+application server. The API image is released via GitHub Actions (see
+CI/CD above); the agent is installed from the release artifact. See
+**[`deploy/README.md`](deploy/README.md)** for the full runbook
+(prerequisites, installers, canary rollout order, verification, rollback,
+incident reference).
 
-Central server:
+Central server (first-time provisioning only):
 
 ```bash
 sudo ./deploy/api/install.sh v0.1.0

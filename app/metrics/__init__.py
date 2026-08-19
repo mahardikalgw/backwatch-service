@@ -53,4 +53,3 @@ def reset_metrics() -> None:
         counter._metrics.clear()
     for gauge in (LAST_SUCCESS_TS, LAST_FAILURE_TS, DURATION_SECONDS, SIZE_BYTES, OVERDUE):
         gauge._metrics.clear()
-

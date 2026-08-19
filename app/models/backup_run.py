@@ -37,15 +37,11 @@ class BackupRun(Base):
     )
     status: Mapped[str] = mapped_column(String(16), index=True, nullable=False)
     started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
-    finished_at: Mapped[Optional[datetime]] = mapped_column(
-        DateTime(timezone=True), nullable=True
-    )
+    finished_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
     duration_seconds: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     size_bytes: Mapped[Optional[int]] = mapped_column(BigInteger, nullable=True)
     storage_provider: Mapped[Optional[str]] = mapped_column(String(32), nullable=True)
     storage_path: Mapped[Optional[str]] = mapped_column(String(512), nullable=True)
     checksum: Mapped[Optional[str]] = mapped_column(String(128), nullable=True)
     error_message: Mapped[Optional[str]] = mapped_column(String(2048), nullable=True)
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now(), nullable=False
-    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)

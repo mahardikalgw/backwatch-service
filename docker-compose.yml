@@ -26,6 +26,7 @@ services:
 
   backup-api:
     build: .
+    image: ${BACKWATCH_IMAGE:-backwatch-api:latest}
     restart: unless-stopped
     environment:
       DATABASE_URL: postgresql+asyncpg://backwatch:backwatch@postgres:5432/backwatch

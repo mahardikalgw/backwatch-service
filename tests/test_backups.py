@@ -54,9 +54,7 @@ async def test_create_and_get_backup(client: AsyncClient, db_session: AsyncSessi
     await _seed(db_session)
     await db_session.commit()
 
-    created = await client.post(
-        "/api/v1/backups", json=_payload(), headers={"X-API-Key": "key-talenta"}
-    )
+    created = await client.post("/api/v1/backups", json=_payload(), headers={"X-API-Key": "key-talenta"})
     assert created.status_code == 201
     backup_id = created.json()["id"]
 
@@ -85,9 +83,7 @@ async def test_application_status_after_success(client: AsyncClient, db_session:
     application = await _seed(db_session)
     await db_session.commit()
 
-    await client.post(
-        "/api/v1/backups", json=_payload("success"), headers={"X-API-Key": "key-talenta"}
-    )
+    await client.post("/api/v1/backups", json=_payload("success"), headers={"X-API-Key": "key-talenta"})
 
     response = await client.get(f"/api/v1/applications/{application.id}/backup-status")
     assert response.status_code == 200

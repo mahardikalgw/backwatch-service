@@ -17,7 +17,7 @@ class ApplicationRepository(BaseRepository[Application]):
     """
 
     def __init__(self, db: AsyncSession) -> None:
-        
+
         super().__init__(db)
         self._model = Application
 
@@ -53,9 +53,7 @@ class ApplicationRepository(BaseRepository[Application]):
         Returns:
             The matching active-or-not Application or None.
         """
-        result = await self._db.execute(
-            select(self._model).where(self._model.api_key_hash == api_key_hash)
-        )
+        result = await self._db.execute(select(self._model).where(self._model.api_key_hash == api_key_hash))
         return result.scalars().first()
 
     async def list_active(self) -> list[Application]:

@@ -1,0 +1,111 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+  packages: write
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt -r requirements-agent.txt
+          pip install "pytest>=8" "pytest-asyncio>=0.23" "ruff>=0.4" "mypy>=1.9"
+
+      - name: Lint (ruff check)
+        run: ruff check app agent scripts tests
+
+      - name: Type check (mypy)
+        run: mypy app agent scripts
+
+      - name: Tests
+        run: pytest -q
+
+  # Builds the backup-agent wheel and the deploy templates, then attaches them
+  # to a GitHub Release. Application servers install the agent by downloading
+  # these artifacts (deploy/agent/install.sh).
+  agent-artifact:
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Set agent package version from tag
+        run: sed -i "s/^version = .*/version = \"${GITHUB_REF_NAME#v}\"/" agent/pyproject.toml
+
+      - name: Build agent wheel
+        run: |
+          pip install build
+          python -m build --wheel agent --outdir dist
+
+      - name: Package agent deploy templates
+        run: tar -czf backwatch-agent-deploy.tar.gz -C deploy/agent .
+
+      - name: Publish GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          generate_release_notes: true
+          files: |
+            dist/*.whl
+            backwatch-agent-deploy.tar.gz
+
+  # Builds the Backup API image and pushes it to GHCR.
+  api-image:
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push API image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: |
+            ghcr.io/mahardikalgw/backwatch-service:${{ github.ref_name }}
+            ghcr.io/mahardikalgw/backwatch-service:latest
+
+  # Deploys the freshly pushed image to the central server over SSH.
+  deploy-api:
+    needs: api-image
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy backup-api to server via SSH
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          script: |
+            set -e
+            echo "${{ secrets.GHCR_TOKEN }}" | docker login ghcr.io -u "${{ secrets.GHCR_USER }}" --password-stdin
+            cd /opt/backwatch-api
+            export BACKWATCH_IMAGE="ghcr.io/mahardikalgw/backwatch-service:${{ github.ref_name }}"
+            docker compose pull backup-api
+            docker compose up -d --no-build backup-api
+            docker image prune -f

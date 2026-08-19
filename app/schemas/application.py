@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Optional
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -43,7 +42,7 @@ class ApplicationStatus(BaseModel):
     application_id: int
     application: str
     status: str
-    last_backup_at: Optional[datetime] = None
-    last_backup_status: Optional[str] = None
-    last_backup_duration_seconds: Optional[int] = None
-    last_backup_size_bytes: Optional[int] = None
+    last_backup_at: datetime | None = None
+    last_backup_status: str | None = None
+    last_backup_duration_seconds: int | None = None
+    last_backup_size_bytes: int | None = None

@@ -77,21 +77,15 @@ class BackupRunService:
         if run.status == "SUCCESS":
             metrics._SUCCESS_COUNTER.labels(**labels).inc()
             if run.finished_at is not None:
-                metrics.LAST_SUCCESS_TS.labels(application=application.name).set(
-                    run.finished_at.timestamp()
-                )
+                metrics.LAST_SUCCESS_TS.labels(application=application.name).set(run.finished_at.timestamp())
             if run.duration_seconds is not None:
-                metrics.DURATION_SECONDS.labels(application=application.name).set(
-                    run.duration_seconds
-                )
+                metrics.DURATION_SECONDS.labels(application=application.name).set(run.duration_seconds)
             if run.size_bytes is not None:
                 metrics.SIZE_BYTES.labels(application=application.name).set(run.size_bytes)
         elif run.status == "FAILED":
             metrics._FAILURE_COUNTER.labels(**labels).inc()
             if run.finished_at is not None:
-                metrics.LAST_FAILURE_TS.labels(application=application.name).set(
-                    run.finished_at.timestamp()
-                )
+                metrics.LAST_FAILURE_TS.labels(application=application.name).set(run.finished_at.timestamp())
 
     async def application_status(self, application: Application, now: datetime) -> ApplicationStatus:
         """Compute the current status label for a single application.
@@ -160,9 +154,7 @@ class BackupRunService:
         filtered: list[BackupRun] = []
         for run in all_runs:
             application = await self._applications.get_by_id(run.application_id)
-            if application is not None and (
-                database_type is None or application.database_type == database_type
-            ):
+            if application is not None and (database_type is None or application.database_type == database_type):
                 filtered.append(run)
         return filtered
 

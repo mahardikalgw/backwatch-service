@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from sqlalchemy import desc, func, select
+from sqlalchemy import desc, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.backup_run import BackupRun
@@ -72,9 +72,7 @@ class BackupRunRepository(BaseRepository[BackupRun]):
         Returns:
             A list of BackupRun instances ordered newest first.
         """
-        result = await self._db.execute(
-            select(self._model).order_by(desc(self._model.started_at))
-        )
+        result = await self._db.execute(select(self._model).order_by(desc(self._model.started_at)))
         return list(result.scalars().all())
 
     async def create_run(self, run: BackupRun) -> BackupRun:

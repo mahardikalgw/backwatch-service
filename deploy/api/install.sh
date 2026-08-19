@@ -1,5 +1,10 @@
 #!/usr/bin/env bash
-# Deploy the backwatch Backup API to the central server.
+# Deploy the backwatch Backup API to the central server (initial provisioning).
+#
+# Ongoing releases are deployed by CI/CD (.github/workflows/release.yml), which
+# pushes the API image to GHCR and SSHes here to pull + recreate the container.
+# This script clones the pinned release for the first bootstrapping, seeds the
+# applications, and installs the host-level systemd timers.
 #
 # Prerequisites on the host: docker, docker compose, git, curl.
 #
@@ -14,7 +19,7 @@ set -euo pipefail
 
 VERSION="${1:?usage: install.sh <version-tag> e.g. v0.1.0}"
 API_DIR="${BACKWATCH_API_DIR:-/opt/backwatch-api}"
-REPO_URL="${BACKWATCH_REPO_URL:-https://github.com/example/backwatch.git}"
+REPO_URL="${BACKWATCH_REPO_URL:-https://github.com/mahardikalgw/backwatch-service.git}"
 DOMAIN="${BACKWATCH_DOMAIN:-backup.example.com}"
 
 log() { printf '[install] %s\n' "$*"; }

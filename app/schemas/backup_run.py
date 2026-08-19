@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Optional
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -19,13 +18,13 @@ class BackupRunCreate(BaseModel):
     database_name: str = Field(..., min_length=1)
     status: str = Field(..., pattern="^(success|failed|running)$")
     started_at: datetime
-    finished_at: Optional[datetime] = None
-    duration_seconds: Optional[int] = Field(default=None, ge=0)
-    size_bytes: Optional[int] = Field(default=None, ge=0)
+    finished_at: datetime | None = None
+    duration_seconds: int | None = Field(default=None, ge=0)
+    size_bytes: int | None = Field(default=None, ge=0)
     storage: str = Field(default="rustfs", max_length=32)
-    storage_path: Optional[str] = None
-    checksum: Optional[str] = None
-    error: Optional[str] = None
+    storage_path: str | None = None
+    checksum: str | None = None
+    error: str | None = None
 
 
 class BackupRunRead(BaseModel):
@@ -37,13 +36,13 @@ class BackupRunRead(BaseModel):
     application_id: int
     status: str
     started_at: datetime
-    finished_at: Optional[datetime] = None
-    duration_seconds: Optional[int] = None
-    size_bytes: Optional[int] = None
-    storage_provider: Optional[str] = None
-    storage_path: Optional[str] = None
-    checksum: Optional[str] = None
-    error_message: Optional[str] = None
+    finished_at: datetime | None = None
+    duration_seconds: int | None = None
+    size_bytes: int | None = None
+    storage_provider: str | None = None
+    storage_path: str | None = None
+    checksum: str | None = None
+    error_message: str | None = None
     created_at: datetime
 
 

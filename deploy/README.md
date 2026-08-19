@@ -11,7 +11,7 @@ server; the **backup agent** runs once per application server (5 servers here).
 └──────────────┘                         └─────────────────────┘
 ```
 
-## 0. Pre-flight (canalized, one-time)
+## 0. Pre-flight (one-time)
 
 - [ ] Choose backup storage: `STORAGE_DRIVER=s3` (MinIO / Ceph RGW / AWS S3 /
       rustfs exposing an S3 API) or `STORAGE_DRIVER=local` (files on the agent
@@ -21,8 +21,16 @@ server; the **backup agent** runs once per application server (5 servers here).
 - [ ] Create one API key per application via `scripts/seed_applications.py` (keys print once).
 - [ ] Get DNS + TLS cert for `backup.example.com` (or your domain).
 - [ ] Optional: `ALERT_WEBHOOK_URL` for Telegram/Discord/email.
+- [ ] Configure the GitHub Actions secrets for CI/CD (`DEPLOY_HOST`,
+      `DEPLOY_USER`, `DEPLOY_SSH_KEY`, `GHCR_USER`, `GHCR_TOKEN` — see the
+      CI/CD section of the root README).
 
 ## 1. Deploy API (central server)
+
+The `install.sh` below is **first-time provisioning only**. Once the
+`.github/workflows/release.yml` pipeline is running, every `v*` tag builds the
+API image, pushes it to GHCR, and SSHes here to pull + recreate the container
+automatically.
 
 ```bash
 sudo ./deploy/api/install.sh v0.1.0
@@ -31,6 +39,12 @@ sudo ./deploy/api/install.sh v0.1.0
 sudo cp deploy/api/nginx.conf /etc/nginx/sites-available/backwatch
 sudo ln -sf /etc/nginx/sites-available/backwatch /etc/nginx/sites-enabled/backwatch
 sudo nginx -t && sudo systemctl reload nginx
+```
+
+Ongoing updates (CI/CD):
+
+```bash
+git tag v0.1.1 && git push origin v0.1.1   # triggers release.yml
 ```
 
 The installer also enables two host-level systemd timers:
@@ -53,18 +67,23 @@ sudo journalctl -u backwatch-autoheal.service -n 20               # watchdog log
 
 ## 2. Deploy agent (per application server, staggered)
 
-staggered means: role out talenta first, verify, then the rest (PRD §9 schedule):
+The installer downloads the agent wheel + systemd templates from the GitHub
+Release (`backwatch_agent-<ver>.whl` and `backwatch-agent-deploy.tar.gz`), so
+no git checkout is needed on application servers. Roll out talenta first,
+verify, then the rest (PRD §9 schedule):
 
 ```bash
 # server talenta
-sudo ./deploy/agent/install.sh talenta --schedule "*-*-* 00:00:00"
+sudo BACKWATCH_VERSION=v0.1.0 ./deploy/agent/install.sh talenta --schedule "*-*-* 00:00:00"
 # server simaira
-sudo ./deploy/agent/install.sh simaira --schedule "*-*-* 01:00:00"
+sudo BACKWATCH_VERSION=v0.1.0 ./deploy/agent/install.sh simaira --schedule "*-*-* 01:00:00"
 # server cakra, liyatra, app-e: repeat with the next hour
 ```
 
 Each server needs its own `/etc/backwatch/<app>.env` (from `env.example`)
-with that application's DB credentials and per-application API key.
+with that application's DB credentials and per-application API key. To update
+an already-deployed agent, re-run the installer with a newer
+`BACKWATCH_VERSION`.
 
 ## 3. Rollout order (canary)
 

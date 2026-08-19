@@ -14,7 +14,6 @@ from app.core.database import Base, engine
 from app.core.security import hash_api_key
 from app.models import Application  # noqa: F401  register model
 
-
 APPLICATIONS = [
     {"name": "talenta", "environment": "production", "database_type": "postgresql"},
     {"name": "simaira", "environment": "production", "database_type": "postgresql"},

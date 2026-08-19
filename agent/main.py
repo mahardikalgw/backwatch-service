@@ -16,18 +16,14 @@ def build_parser() -> argparse.ArgumentParser:
     Returns:
         A configured ArgumentParser.
     """
-    parser = argparse.ArgumentParser(
-        prog="backup-agent", description="Run a centralized database backup"
-    )
+    parser = argparse.ArgumentParser(prog="backup-agent", description="Run a centralized database backup")
     subparsers = parser.add_subparsers(dest="command")
 
     run_parser = subparsers.add_parser("run", help="Run one backup and report the result")
     run_parser.add_argument("--report", action="store_true", help="Report result to the Backup API")
 
     prune_parser = subparsers.add_parser("prune", help="Delete backups older than retention")
-    prune_parser.add_argument(
-        "--report", action="store_true", help="Report the prune summary (no-op in MVP)"
-    )
+    prune_parser.add_argument("--report", action="store_true", help="Report the prune summary (no-op in MVP)")
     return parser
 
 

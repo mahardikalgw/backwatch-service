@@ -32,6 +32,12 @@ target-version = "py39"
 select = ["E", "W", "F", "I", "B", "C4", "UP", "SIM"]
 ignore = ["E501", "B008"]
 
+[tool.ruff.lint.per-file-ignores]
+# SQLAlchemy evaluates Mapped[...] annotations at class-definition time, where
+# `X | None` is invalid on Python 3.9 (type.__or__ does not exist). Keep
+# typing.Optional inside the ORM models.
+"app/models/*.py" = ["UP045"]
+
 [tool.ruff.format]
 quote-style = "double"
 indent-style = "space"

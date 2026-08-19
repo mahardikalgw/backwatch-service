@@ -30,6 +30,4 @@ class BackupEvent(Base):
     )
     event: Mapped[str] = mapped_column(String(32), nullable=False)
     message: Mapped[Optional[str]] = mapped_column(String(1024), nullable=True)
-    timestamp: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now(), nullable=False
-    )
+    timestamp: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)

@@ -111,10 +111,8 @@ class DatabaseDumper:
                 with open(raw_path, "wb") as output:
                     process = subprocess.run(command, env=env, stdout=output, stderr=subprocess.PIPE)
             else:
-                process = subprocess.run(
-                    command, env=env, stdout=subprocess.PIPE, stderr=subprocess.PIPE
-                )
-        except FileNotFoundError as exc:
+                process = subprocess.run(command, env=env, capture_output=True)
+        except FileNotFoundError:
             error = f"{cfg.dump_command_name} not found on PATH"
             self._logger.error("database dump failed", error=error)
             return DumpResult(database_name=cfg.db_name, error=error, commands=command)
