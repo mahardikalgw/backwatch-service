@@ -1,0 +1,21 @@
+# backwatch alert rules (PRD section 18).
+groups:
+  - name: backups
+    rules:
+      - alert: BackupFailed
+        expr: increase(backup_failure_total[15m]) > 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "A backup has failed"
+          description: "One or more backups failed in the last 15 minutes. Application: {{ $labels.application }}"
+
+      - alert: BackupOverdue
+        expr: backup_overdue == 1
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Backup is overdue"
+          description: "Application {{ $labels.application }} has not completed a successful backup within its schedule."

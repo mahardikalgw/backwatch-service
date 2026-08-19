@@ -1,0 +1,10 @@
+[Unit]
+Description=backwatch retention prune for %i
+
+[Service]
+Type=oneshot
+EnvironmentFile=/etc/backwatch/%i.env
+ExecStart=/opt/backwatch/venv/bin/python -m agent.main prune
+WorkingDirectory=/opt/backwatch
+User=backwatch
+Group=backwatch

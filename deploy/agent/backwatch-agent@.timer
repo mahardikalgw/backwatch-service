@@ -1,0 +1,10 @@
+[Unit]
+Description=Schedule for the backwatch backup agent %i
+Requires=backwatch-agent@%i.service
+
+[Timer]
+OnCalendar=*-*-* 00:00:00
+Persistent=true
+
+[Install]
+WantedBy=timers.target

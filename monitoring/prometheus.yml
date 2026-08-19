@@ -1,0 +1,13 @@
+# backwatch Prometheus configuration (PRD sections 16-18).
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+rule_files:
+  - "prometheus-alerts.yml"
+
+scrape_configs:
+  - job_name: "backwatch-api"
+    metrics_path: /metrics
+    static_configs:
+      - targets: ["backup-api:8000"]

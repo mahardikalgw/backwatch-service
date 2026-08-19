@@ -1,0 +1,6 @@
+# Cron example (PRD section 9: schedule can change without touching engine).
+# Runs the agent daily at 00:00; set --report to send results to the API.
+#
+# Load the per-application environment then run:
+#   0 0 * * * cd /opt/backwatch && set -a && . /etc/backwatch/agent.env && set +a \
+#       && /usr/local/bin/python3 -m agent.main run --report >> /var/log/backwatch-agent.log 2>&1

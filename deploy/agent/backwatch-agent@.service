@@ -1,0 +1,12 @@
+[Unit]
+Description=Centralized Database Backup Agent (backwatch) for %i
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+EnvironmentFile=/etc/backwatch/%i.env
+ExecStart=/opt/backwatch/venv/bin/python -m agent.main run --report
+WorkingDirectory=/opt/backwatch
+User=backwatch
+Group=backwatch

@@ -1,0 +1,61 @@
+# backwatch full stack (PRD section 24).
+# Backup files go to S3-compatible object storage via the agent's S3 driver.
+# For the runnable MVP the agent uses its local storage driver on each host.
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: backwatch
+      POSTGRES_PASSWORD: backwatch
+      POSTGRES_DB: backwatch
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U backwatch"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  backup-api:
+    build: .
+    environment:
+      DATABASE_URL: postgresql+asyncpg://backwatch:backwatch@postgres:5432/backwatch
+      SECRET_KEY: ${SECRET_KEY:-change-me-in-production}
+      CORS_ORIGINS: "*"
+      ENABLE_METRICS: "true"
+      BACKWATCH_STATE_FILE: /var/backwatch/watcher-state.json
+    volumes:
+      - backwatch_state:/var/backwatch
+    ports:
+      - "8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  prometheus:
+    image: prom/prometheus:latest
+    volumes:
+      - ./monitoring:/etc/prometheus
+    ports:
+      - "9090:9090"
+    depends_on:
+      - backup-api
+
+  grafana:
+    image: grafana/grafana:latest
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: admin
+    ports:
+      - "3000:3000"
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./monitoring/grafana-dashboard.json:/etc/grafana/provisioning/dashboards/backwatch.json:ro
+    depends_on:
+      - prometheus
+
+volumes:
+  postgres_data:
+  grafana_data:
+  backwatch_state:
