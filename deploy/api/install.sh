@@ -73,6 +73,16 @@ cp deploy/api/backwatch-watcher.timer /etc/systemd/system/
 systemctl daemon-reload
 systemctl enable --now backwatch-watcher.timer
 
+# 7. Install the container self-healing watchdog on the host.
+log "installing backwatch-autoheal watchdog (every minute)"
+mkdir -p /usr/local/lib
+cp deploy/api/backwatch-autoheal.sh /usr/local/lib/backwatch-autoheal.sh
+chmod +x /usr/local/lib/backwatch-autoheal.sh
+cp deploy/api/backwatch-autoheal.service /etc/systemd/system/
+cp deploy/api/backwatch-autoheal.timer /etc/systemd/system/
+systemctl daemon-reload
+systemctl enable --now backwatch-autoheal.timer
+
 log "install the reverse proxy next:"
 log "  sed -i 's/backup.example.com/$DOMAIN/g' deploy/api/nginx.conf"
 log "  cp deploy/api/nginx.conf /etc/nginx/sites-available/backwatch"

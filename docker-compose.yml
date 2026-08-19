@@ -1,9 +1,15 @@
 # backwatch full stack (PRD section 24).
 # Backup files go to S3-compatible object storage via the agent's S3 driver.
 # For the runnable MVP the agent uses its local storage driver on each host.
+#
+# Self-healing: every service has a healthcheck and a restart policy. The host
+# watchdog (deploy/api/backwatch-autoheal.timer) additionally restarts any
+# container that turns unhealthy.
+name: backwatch
 services:
   postgres:
     image: postgres:16-alpine
+    restart: unless-stopped
     environment:
       POSTGRES_USER: backwatch
       POSTGRES_PASSWORD: backwatch
@@ -20,6 +26,7 @@ services:
 
   backup-api:
     build: .
+    restart: unless-stopped
     environment:
       DATABASE_URL: postgresql+asyncpg://backwatch:backwatch@postgres:5432/backwatch
       SECRET_KEY: ${SECRET_KEY:-change-me-in-production}
@@ -33,18 +40,36 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import urllib.request as u; u.urlopen('http://127.0.0.1:8000/health', timeout=5)"
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
 
   prometheus:
     image: prom/prometheus:latest
+    restart: unless-stopped
     volumes:
       - ./monitoring:/etc/prometheus
     ports:
       - "9090:9090"
     depends_on:
       - backup-api
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://localhost:9090/-/healthy || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
 
   grafana:
     image: grafana/grafana:latest
+    restart: unless-stopped
     environment:
       GF_SECURITY_ADMIN_PASSWORD: admin
     ports:
@@ -54,6 +79,12 @@ services:
       - ./monitoring/grafana-dashboard.json:/etc/grafana/provisioning/dashboards/backwatch.json:ro
     depends_on:
       - prometheus
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://localhost:3000/api/health || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
 
 volumes:
   postgres_data:

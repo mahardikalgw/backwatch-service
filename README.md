@@ -16,6 +16,9 @@ Built from the requirements in
 - **Cross-engine support** — PostgreSQL and MySQL out of the box.
 - **S3-compatible object storage** — works with MinIO, Ceph RGW, AWS S3, or any S3-compatible service (rustfs with an S3 API). A local-filesystem driver is included for a runnable MVP.
 - **Status model** — every backup results in `SUCCESS`, `FAILED`, `RUNNING`, or `OVERDUE`; never "nothing happened".
+- **Container self-healing** — every service carries a healthcheck + `restart:
+  unless-stopped`, and a host watchdog (`backwatch-autoheal.timer`) restarts
+  any exited or unhealthy container every minute.
 - **Overdue detection** — schedule-aware (`daily`, `hourly`, `weekly`, or `24h`-style strings) with metric refresh + first-incident alerts run by a 15-minute watcher.
 - **Prometheus metrics + Grafana** — dashboards and alert rules included; optional OpenTelemetry instrumentation.
 - **Per-application API keys** — each app has a unique key; only a salted digest is stored.
