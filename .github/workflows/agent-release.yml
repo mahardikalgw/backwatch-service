@@ -1,0 +1,70 @@
+name: Agent Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version tag (e.g. v0.1.0)"
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt -r requirements-agent.txt
+          pip install "pytest>=8" "pytest-asyncio>=0.23" "ruff>=0.4" "mypy>=1.9"
+
+      - name: Lint (ruff check)
+        run: ruff check app agent scripts tests
+
+      - name: Type check (mypy)
+        run: mypy app agent scripts
+
+      - name: Tests
+        run: pytest -q
+
+  agent-artifact:
+    needs: [test]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Set agent package version from input
+        run: sed -i "s/^version = .*/version = \"${VERSION#v}\"/" agent/pyproject.toml
+        env:
+          VERSION: ${{ inputs.version }}
+
+      - name: Build agent wheel
+        run: |
+          pip install build
+          python -m build --wheel agent --outdir dist
+
+      - name: Package agent deploy templates
+        run: tar -czf backwatch-agent-deploy.tar.gz -C deploy/agent .
+
+      - name: Publish GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ inputs.version }}
+          name: ${{ inputs.version }}
+          generate_release_notes: true
+          files: |
+            dist/*.whl
+            backwatch-agent-deploy.tar.gz
