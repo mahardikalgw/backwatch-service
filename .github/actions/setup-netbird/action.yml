@@ -1,0 +1,33 @@
+name: "Setup NetBird"
+description: "Install NetBird CLI and connect to the tailnet"
+
+inputs:
+  setup_key:
+    description: "NetBird setup key (NETBIRD_SETUP_KEY secret)"
+    required: true
+
+runs:
+  using: "composite"
+  steps:
+    - name: Install NetBird CLI
+      shell: bash
+      run: |
+        if command -v netbird &>/dev/null; then
+          echo "netbird already installed"
+        else
+          curl -fsSL https://pkgs.netbird.io/install.sh | sh
+        fi
+
+    - name: Connect to NetBird tailnet
+      shell: bash
+      run: |
+        sudo netbird up --setup-key "${{ inputs.setup_key }}" || true
+        for i in $(seq 1 15); do
+          if netbird status 2>&1 | grep -qi "Status.*Connected"; then
+            echo "NetBird connected"
+            netbird status
+            break
+          fi
+          sleep 2
+        done
+        ip addr show 2>/dev/null | grep -E "wt[0-9]|utun" || true
