@@ -1,4 +1,4 @@
-# syntax=docker/dockerfile:1
+# Containerfile for the Backup API image (built with podman/buildah).
 FROM python:3.12-slim
 
 ENV PYTHONDONTWRITEBYTECODE=1 \

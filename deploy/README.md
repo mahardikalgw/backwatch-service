@@ -53,7 +53,7 @@ The installer also enables two host-level systemd timers:
   metric and alerts on new FAILED/OVERDUE incidents (PRD §18, §20).
 - `backwatch-autoheal.timer` — every minute, restarts any backwatch container
   that is exited or whose healthcheck reports `unhealthy`. Combined with the
-  `restart: unless-stopped` policies and healthchecks in `docker-compose.yml`,
+  `restart: unless-stopped` policies and healthchecks in `compose.yaml`,
   this is the container self-healing layer.
 
 Verify:
@@ -61,7 +61,7 @@ Verify:
 curl -s https://backup.example.com/health                    # {"status":"ok"}
 curl -s https://backup.example.com/api/v1/health/backups
 curl -s https://backup.example.com/metrics | grep backup_
-docker ps --filter "label=com.docker.compose.project=backwatch"   # all healthy
+podman ps --filter "label=com.docker.compose.project=backwatch"   # all healthy
 sudo journalctl -u backwatch-autoheal.service -n 20               # watchdog log
 ```
 
@@ -117,7 +117,7 @@ journalctl -u backwatch-agent@<app>.service -f
 - **Agent**: `systemctl disable --now backwatch-agent@<app>.timer` — backups stop cleanly;
   manually restore the last good backup if needed. Downgrade by re-running
   `install.sh` with a previous `BACKWATCH_VERSION`.
-- **API**: `docker compose down` + `git checkout <previous-tag>` + re-run
+- **API**: `podman-compose down` + `git checkout <previous-tag>` + re-run
   `install.sh`; data is safe in the Postgres volume. The autoheal watchdog
   stays enabled and will restart the re-deployed containers.
 
@@ -128,7 +128,7 @@ journalctl -u backwatch-agent@<app>.service -f
 | Agent exits non-zero | `journalctl -u backwatch-agent@<app>.service` |
 | Backup shows OVERDUE | timer enabled? `systemctl is-enabled backwatch-agent@<app>.timer`; schedule drop-in correct? |
 | No metrics in Grafana | `curl /metrics` on API; Prometheus target Up? |
-| Container flapping | `systemctl status backwatch-autoheal` + `journalctl -t backwatch-autoheal`; `docker logs <container>` |
+| Container flapping | `systemctl status backwatch-autoheal` + `journalctl -t backwatch-autoheal`; `podman logs <container>` |
 | Alert noise | state file at `/var/backwatch/watcher-state.json` (resets after container restart is expected) |
 
 ## Files

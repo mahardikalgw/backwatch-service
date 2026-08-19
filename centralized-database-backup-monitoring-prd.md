@@ -602,7 +602,7 @@ Use:
 
 - Environment variables.
 - Secret manager.
-- Docker secrets.
+- Podman secrets.
 
 ### API authentication
 
@@ -758,10 +758,10 @@ Scheduling
     systemd timer / cron
 
 Container
-    Docker
+    Podman
 
 Deployment
-    Docker Compose
+    Podman Compose (podman-compose)
 ```
 
 ## 25. Architecture Principles

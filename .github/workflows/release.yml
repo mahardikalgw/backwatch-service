@@ -161,22 +161,24 @@ jobs:
         with:
           setup_key: ${{ secrets.NETBIRD_SETUP_KEY }}
 
-      - uses: docker/setup-buildx-action@v3
+      - name: Install podman
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y podman
+          podman --version
 
-      - uses: docker/login-action@v3
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Log in to GHCR
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | podman login ghcr.io -u "${{ github.actor }}" --password-stdin
 
       - name: Build and push API image
-        uses: docker/build-push-action@v6
-        with:
-          context: .
-          push: true
-          tags: |
-            ghcr.io/mahardikalgw/backwatch-service:${{ inputs.version }}
-            ghcr.io/mahardikalgw/backwatch-service:latest
+        env:
+          IMAGE_VERSION: ghcr.io/mahardikalgw/backwatch-service:${{ inputs.version }}
+          IMAGE_LATEST: ghcr.io/mahardikalgw/backwatch-service:latest
+        run: |
+          podman --storage-driver=vfs build -t "$IMAGE_VERSION" .
+          podman --storage-driver=vfs push "$IMAGE_VERSION"
+          podman tag "$IMAGE_VERSION" "$IMAGE_LATEST"
+          podman --storage-driver=vfs push "$IMAGE_LATEST"
 
       - name: Trivy container image scan
         uses: aquasecurity/trivy-action@master
@@ -209,9 +211,9 @@ jobs:
           key: ${{ secrets.DEPLOY_SSH_KEY }}
           script: |
             set -e
-            echo "${{ secrets.GHCR_TOKEN }}" | docker login ghcr.io -u "${{ secrets.GHCR_USER }}" --password-stdin
+            echo "${{ secrets.GHCR_TOKEN }}" | podman login ghcr.io -u "${{ secrets.GHCR_USER }}" --password-stdin
             cd /opt/backwatch-api
             export BACKWATCH_IMAGE="ghcr.io/mahardikalgw/backwatch-service:${{ inputs.version }}"
-            docker compose pull backup-api
-            docker compose up -d --no-build backup-api
-            docker image prune -f
+            podman-compose pull backup-api
+            podman-compose up -d --no-build backup-api
+            podman image prune -f

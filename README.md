@@ -99,7 +99,7 @@ scripts/             seed_applications.py, overdue_watcher.py
 monitoring/          Prometheus config, alert rules, Grafana dashboard
 tests/               pytest suite (API + agent)
 alembic/             migration scaffolding (no migrations yet)
-docker-compose.yml   local full stack: postgres + api + prometheus + grafana
+compose.yaml         local full stack: postgres + api + prometheus + grafana
 ```
 
 ## Backup record
@@ -166,14 +166,16 @@ python -m agent.main run --report
 
 Copy `.env.example` to `.env` and adjust for persistent local configuration.
 
-### Full stack with Docker Compose
+### Full stack with Podman Compose
 
 ```bash
-docker compose up -d
+podman-compose up -d
 ```
 
 Brings up PostgreSQL (metadata), the Backup API, Prometheus, and Grafana
-(dashboard provisioned from `monitoring/grafana-dashboard.json`).
+(dashboard provisioned from `monitoring/grafana-dashboard.json`). The stack
+defines `backup-api` with `build: .` (built from `Containerfile` by
+`podman build`); override the registry image with `BACKWATCH_IMAGE`.
 
 ## Environment configuration
 
@@ -273,9 +275,9 @@ GitHub Actions workflows in `.github/workflows/`:
   1. builds the **agent wheel** (`backwatch_agent-<ver>-py3-none-any.whl`) and a
      `backwatch-agent-deploy.tar.gz` (systemd templates), attached to a GitHub
      Release;
-  2. builds the **API Docker image** and pushes it to GHCR
+  2. builds the **API container image** with Podman and pushes it to GHCR
      (`ghcr.io/mahardikalgw/backwatch-service:<tag>` and `:latest`);
-  3. **deploys the API** over SSH to the central server (`docker compose pull`
+  3. **deploys the API** over SSH to the central server (`podman-compose pull`
      + `up -d --no-build`).
 
 Required repository secrets (Settings → Secrets and variables → Actions):

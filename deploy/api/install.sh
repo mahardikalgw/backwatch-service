@@ -6,7 +6,7 @@
 # This script clones the pinned release for the first bootstrapping, seeds the
 # applications, and installs the host-level systemd timers.
 #
-# Prerequisites on the host: docker, docker compose, git, curl.
+# Prerequisites on the host: podman, podman-compose, git, curl.
 #
 # Usage:
 #   BACKWATCH_API_DIR=/opt/backwatch-api ./deploy/api/install.sh <version-tag>
@@ -28,6 +28,13 @@ if [[ $EUID -ne 0 ]]; then
     echo "run as root (sudo)" >&2
     exit 1
 fi
+
+for cmd in podman podman-compose; do
+    if ! command -v "$cmd" >/dev/null 2>&1; then
+        echo "missing prerequisite: $cmd" >&2
+        exit 1
+    fi
+done
 
 mkdir -p "$API_DIR"
 cd "$API_DIR"
@@ -57,19 +64,19 @@ source "$ENV_FILE"
 set +a
 
 log "starting postgres, backup-api, prometheus, grafana"
-docker compose up -d --wait --scale backup-api=1
+podman-compose up -d --wait --scale backup-api=1
 
 # 4. Schema: prefer alembic when migrations exist, else let startup create_all.
 if compgen -G "alembic/versions/*.py" >/dev/null; then
     log "applying alembic migrations"
-    docker compose exec backup-api alembic upgrade head
+    podman-compose exec backup-api alembic upgrade head
 else
     log "no migrations present; tables are created by the app lifespan"
 fi
 
 # 5. Seed applications and print API keys (only first run; skips existing).
 log "seeding applications (capture the printed API keys!)"
-docker compose exec backup-api python scripts/seed_applications.py
+podman-compose exec backup-api python scripts/seed_applications.py
 
 # 6. Install the overdue-metrics alerting watcher on the host.
 log "installing backwatch-watcher timer (every 15 minutes)"

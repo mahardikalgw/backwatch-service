@@ -1,7 +1,7 @@
 [Unit]
-Description=backwatch docker container self-healing watchdog
-Requires=docker.service
-After=docker.service
+Description=backwatch podman container self-healing watchdog
+Requires=podman.service
+After=podman.service
 
 [Service]
 Type=oneshot

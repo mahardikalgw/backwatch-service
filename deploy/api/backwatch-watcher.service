@@ -1,10 +1,10 @@
 [Unit]
 Description=backwatch overdue metrics/alerts watcher
-Requires=docker.service
-After=docker.service
+Requires=podman.service
+After=podman.service
 
 [Service]
 Type=oneshot
 WorkingDirectory=/opt/backwatch-api
 EnvironmentFile=/opt/backwatch-api/.env
-ExecStart=/usr/bin/docker compose exec -T backup-api python scripts/overdue_watcher.py
+ExecStart=/usr/local/bin/podman-compose exec -T backup-api python scripts/overdue_watcher.py
