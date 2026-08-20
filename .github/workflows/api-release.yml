@@ -65,7 +65,7 @@ jobs:
         if: always()
         run: |
           if [ ! -f bandit-results.sarif ]; then
-            echo '{"version":"2.1.0","$schema":"https://json.schemastore.org/sarif-2.1.0.json","runs":[]}' > bandit-results.sarif
+            echo '{"version":"2.1.0","$schema":"https://json.schemastore.org/sarif-2.1.0.json","runs":[{"tool":{"driver":{"name":"Bandit","rules":[]}},"results":[]}]}' > bandit-results.sarif
             echo "Created fallback bandit-results.sarif"
           fi
           ls -lh bandit-results.sarif
@@ -85,7 +85,7 @@ jobs:
         if: always()
         run: |
           if [ ! -f trivy-results.sarif ]; then
-            echo '{"version":"2.1.0","$schema":"https://json.schemastore.org/sarif-2.1.0.json","runs":[]}' > trivy-results.sarif
+            echo '{"version":"2.1.0","$schema":"https://json.schemastore.org/sarif-2.1.0.json","runs":[{"tool":{"driver":{"name":"Trivy","rules":[]}},"results":[]}]}' > trivy-results.sarif
           fi
           ls -lh trivy-results.sarif || true
 
@@ -146,11 +146,13 @@ jobs:
           IMAGE_VERSION: ghcr.io/mahardikalgw/backwatch-service:${{ inputs.version || 'latest' }}
           IMAGE_LATEST: ghcr.io/mahardikalgw/backwatch-service:latest
         run: |
-          podman --storage-driver=vfs build -t "$IMAGE_VERSION" .
-          podman --storage-driver=vfs push "$IMAGE_VERSION"
+          # Use default graph driver (overlay on ubuntu-latest); vfs flag causes
+          # "database graph driver overlay does not match vfs" on cached runners
+          podman build -t "$IMAGE_VERSION" .
+          podman push "$IMAGE_VERSION"
           if [ "$IMAGE_VERSION" != "$IMAGE_LATEST" ]; then
             podman tag "$IMAGE_VERSION" "$IMAGE_LATEST"
-            podman --storage-driver=vfs push "$IMAGE_LATEST"
+            podman push "$IMAGE_LATEST"
           fi
 
       - name: Trivy container image scan
@@ -167,7 +169,7 @@ jobs:
         if: always()
         run: |
           if [ ! -f trivy-image-results.sarif ]; then
-            echo '{"version":"2.1.0","$schema":"https://json.schemastore.org/sarif-2.1.0.json","runs":[]}' > trivy-image-results.sarif
+            echo '{"version":"2.1.0","$schema":"https://json.schemastore.org/sarif-2.1.0.json","runs":[{"tool":{"driver":{"name":"Trivy","rules":[]}},"results":[]}]}' > trivy-image-results.sarif
           fi
           ls -lh trivy-image-results.sarif || true
 
