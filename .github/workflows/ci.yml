@@ -66,7 +66,7 @@ jobs:
 
       - name: Bandit security scan
         run: |
-          pip install bandit
+          pip install "bandit[sarif]"
           bandit -r app agent scripts -f sarif -o bandit-results.sarif || true
 
       - name: Trivy filesystem scan
@@ -80,11 +80,13 @@ jobs:
           severity: HIGH,CRITICAL
 
       - name: Upload Bandit results to GitHub Security
+        if: always() && hashFiles('bandit-results.sarif') != ''
         uses: github/codeql-action/upload-sarif@v4
         with:
           sarif_file: bandit-results.sarif
 
       - name: Upload Trivy results to GitHub Security
+        if: always() && hashFiles('trivy-results.sarif') != ''
         uses: github/codeql-action/upload-sarif@v4
         with:
           sarif_file: trivy-results.sarif
