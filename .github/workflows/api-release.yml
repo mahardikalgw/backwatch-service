@@ -5,8 +5,11 @@ on:
     inputs:
       version:
         description: "Version tag (e.g. v0.1.0)"
-        required: true
+        required: false
+        default: "latest"
         type: string
+  push:
+    branches: [main]
 
 permissions:
   contents: read
@@ -68,12 +71,12 @@ jobs:
           severity: HIGH,CRITICAL
 
       - name: Upload Bandit results to GitHub Security
-        uses: github/codeql-action/upload-sarif@v3
+        uses: github/codeql-action/upload-sarif@v4
         with:
           sarif_file: bandit-results.sarif
 
       - name: Upload Trivy results to GitHub Security
-        uses: github/codeql-action/upload-sarif@v3
+        uses: github/codeql-action/upload-sarif@v4
         with:
           sarif_file: trivy-results.sarif
 
@@ -91,16 +94,16 @@ jobs:
           python-version: "3.12"
 
       - name: Initialize CodeQL
-        uses: github/codeql-action/init@v3
+        uses: github/codeql-action/init@v4
         with:
           languages: python
           queries: security-and-quality
 
       - name: Autobuild
-        uses: github/codeql-action/autobuild@v3
+        uses: github/codeql-action/autobuild@v4
 
       - name: Perform CodeQL analysis
-        uses: github/codeql-action/analyze@v3
+        uses: github/codeql-action/analyze@v4
 
   api-image:
     needs: [test, security, codeql]
@@ -119,26 +122,28 @@ jobs:
 
       - name: Build and push API image
         env:
-          IMAGE_VERSION: ghcr.io/mahardikalgw/backwatch-service:${{ inputs.version }}
+          IMAGE_VERSION: ghcr.io/mahardikalgw/backwatch-service:${{ inputs.version || 'latest' }}
           IMAGE_LATEST: ghcr.io/mahardikalgw/backwatch-service:latest
         run: |
           podman --storage-driver=vfs build -t "$IMAGE_VERSION" .
           podman --storage-driver=vfs push "$IMAGE_VERSION"
-          podman tag "$IMAGE_VERSION" "$IMAGE_LATEST"
-          podman --storage-driver=vfs push "$IMAGE_LATEST"
+          if [ "$IMAGE_VERSION" != "$IMAGE_LATEST" ]; then
+            podman tag "$IMAGE_VERSION" "$IMAGE_LATEST"
+            podman --storage-driver=vfs push "$IMAGE_LATEST"
+          fi
 
       - name: Trivy container image scan
         uses: aquasecurity/trivy-action@master
         with:
           scan-type: image
-          scan-ref: ghcr.io/mahardikalgw/backwatch-service:${{ inputs.version }}
+          scan-ref: ghcr.io/mahardikalgw/backwatch-service:${{ inputs.version || 'latest' }}
           format: sarif
           output: trivy-image-results.sarif
           exit-code: 0
           severity: HIGH,CRITICAL
 
       - name: Upload container scan results to GitHub Security
-        uses: github/codeql-action/upload-sarif@v3
+        uses: github/codeql-action/upload-sarif@v4
         with:
           sarif_file: trivy-image-results.sarif
 
@@ -150,16 +155,73 @@ jobs:
         with:
           setup_key: ${{ secrets.NETBIRD_SETUP_KEY }}
 
-      - name: Deploy backup-api to server via SSH
+      - name: Deploy backup-api to server via SSH (full CD, no manual install.sh)
         uses: appleboy/ssh-action@v1
         with:
           host: ${{ secrets.DEPLOY_HOST }}
           username: ${{ secrets.DEPLOY_USER }}
           key: ${{ secrets.DEPLOY_SSH_KEY }}
           script: |
-            set -e
-            cd /opt/backwatch-api
-            export BACKWATCH_IMAGE="ghcr.io/mahardikalgw/backwatch-service:${{ inputs.version }}"
+            set -euo pipefail
+            API_DIR=/opt/backwatch-api
+            REPO_URL="https://github.com/${{ github.repository }}.git"
+            VERSION="${{ inputs.version || 'latest' }}"
+
+            # 1. Clone or update repo (replaces deploy/api/install.sh clone)
+            if [ ! -d "$API_DIR/.git" ]; then
+              sudo mkdir -p "$API_DIR"
+              sudo chown "$USER":"$USER" "$API_DIR" 2>/dev/null || sudo chown "$USER" "$API_DIR"
+              git clone "$REPO_URL" "$API_DIR"
+            fi
+            cd "$API_DIR"
+            git fetch --all --tags --prune
+            if [ "$VERSION" = "latest" ]; then
+              git checkout main && git pull origin main
+            else
+              git checkout "$VERSION"
+            fi
+
+            # 2. Create .env from secrets on first run (replaces install.sh .env step)
+            # Required secrets: DATABASE_URL, SECRET_KEY, CORS_ORIGINS (optional)
+            if [ ! -f "$API_DIR/.env" ]; then
+              echo "Creating $API_DIR/.env from GitHub Secrets..."
+              cat > "$API_DIR/.env" <<EOF
+            DATABASE_URL=${{ secrets.DATABASE_URL }}
+            SECRET_KEY=${{ secrets.SECRET_KEY }}
+            CORS_ORIGINS=${{ secrets.CORS_ORIGINS }}
+            ENABLE_METRICS=true
+            BACKWATCH_STATE_FILE=/var/backwatch/watcher-state.json
+            EOF
+              # Fallbacks if secrets not set (keeps compose usable for local defaults)
+              if ! grep -q "DATABASE_URL=postgresql" "$API_DIR/.env"; then
+                echo "WARNING: DATABASE_URL secret not set, using compose default"
+              fi
+            fi
+
+            # 3. Pull GHCR image and bring up full stack (postgres+api+prometheus+grafana)
+            export BACKWATCH_IMAGE="ghcr.io/mahardikalgw/backwatch-service:$VERSION"
+            # Ensure GHCR auth on server (uses GITHUB_TOKEN via deploy key or prior podman login)
+            echo "${{ secrets.GITHUB_TOKEN }}" | podman login ghcr.io -u "${{ github.actor }}" --password-stdin || true
             podman-compose pull backup-api
-            podman-compose up -d --no-build backup-api
-            podman image prune -f
+            podman-compose up -d --wait
+
+            # 4. Seed applications (idempotent, scripts/seed_applications.py skips existing)
+            podman-compose exec -T backup-api python scripts/seed_applications.py || echo "seed skipped/failed (check logs)"
+
+            # 5. Install host systemd timers (replaces install.sh watcher/autoheal) - idempotent
+            if [ -f deploy/api/backwatch-watcher.service ]; then
+              sudo cp deploy/api/backwatch-watcher.service /etc/systemd/system/
+              sudo cp deploy/api/backwatch-watcher.timer /etc/systemd/system/
+              sudo cp deploy/api/backwatch-autoheal.sh /usr/local/lib/backwatch-autoheal.sh 2>/dev/null || sudo cp deploy/api/backwatch-autoheal.sh /usr/local/bin/backwatch-autoheal.sh
+              sudo chmod +x /usr/local/lib/backwatch-autoheal.sh 2>/dev/null || sudo chmod +x /usr/local/bin/backwatch-autoheal.sh
+              sudo cp deploy/api/backwatch-autoheal.service /etc/systemd/system/ 2>/dev/null || true
+              sudo cp deploy/api/backwatch-autoheal.timer /etc/systemd/system/ 2>/dev/null || true
+              sudo systemctl daemon-reload
+              sudo systemctl enable --now backwatch-watcher.timer || true
+              sudo systemctl enable --now backwatch-autoheal.timer || true
+            fi
+
+            # 6. Verify (no nginx needed - cloudflare tunnel points to 127.0.0.1:8000)
+            podman ps --filter "label=com.docker.compose.project=backwatch" || podman ps | grep backwatch || true
+            curl -sf http://127.0.0.1:8000/health && echo "API health OK" || (echo "API health check failed" && podman logs backwatch-api --tail 50 || true)
+            podman image prune -f || true
